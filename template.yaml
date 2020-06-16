@@ -1,0 +1,259 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS error logger. Logs errors to Sentry, SNS, and others.'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  PhoneNumber:
+    Type: String
+    Default: ''
+  SentryUrl:
+    Type: String
+  WebhookEndpoint:
+    Type: String
+    Default: ''
+
+Conditions:
+  isSmsEnabled: !Not [!Equals [!Ref PhoneNumber, '']]
+  isWebhookEnabled: !Not [!Equals [!Ref WebhookEndpoint, '']]
+
+Resources:
+  BuildStatus:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+          "account": [
+            "${AWS::AccountId}"
+          ],
+          "detail": {
+            "build-status": [
+              "FAILED"
+            ]
+          }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: build-status
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  DetailType:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+            "account": [
+                "${AWS::AccountId}"
+            ],
+            "detail-type": [
+                "EC2 Instance Launch Unsuccessful",
+                "EC2 Instance Terminate Unsuccessful",
+                "EC2 Spot Instance Interruption Warning",
+                "EMR Configuration Error"
+            ]
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: detail-type
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  State:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+            "account": [
+                "${AWS::AccountId}"
+            ],
+            "detail": {
+              "state": [
+                "FAILURE",
+                "FAILED",
+                "ERROR",
+                "TERMINATED_WITH_ERRORS",
+                "Failed"
+              ]
+            }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: state
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  Status1:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+            "account": [
+                "${AWS::AccountId}"
+            ],
+            "detail": {
+              "status": [
+                  "Failed",
+                  "TimedOut",
+                  "FAILED",
+                  "TIMED_OUT",
+                  "connection_lost",
+                  "setup_failed",
+                  "start_failed",
+                  "stop_failed",
+                  "ERROR"
+              ]
+            }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: status1
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  Status2:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+            "account": [
+                "${AWS::AccountId}"
+            ],
+            "detail": {
+              "Status": [
+                  "Failed",
+                  "TimedOut",
+                  "FAILED",
+                  "TIMED_OUT",
+                  "connection_lost",
+                  "setup_failed",
+                  "start_failed",
+                  "stop_failed",
+                  "ERROR"
+              ]
+            }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: status2
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  Health:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: !Sub |
+        {
+          "account": [
+              "${AWS::AccountId}"
+          ],
+          "source": [
+            "aws.health"
+          ],
+          "detail-type": [
+            "AWS Health Abuse Event"
+          ],
+          "detail": {
+            "service": [
+              "ABUSE"
+            ],
+            "eventTypeCategory": [
+              "issue"
+            ]
+          }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: health
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  Transcribe:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern: |
+        {
+          "source": [
+            "aws.transcribe"
+          ],
+          "detail-type": [
+            "Transcribe Job State Change"
+          ],
+          "detail": {
+            "TranscriptionJobStatus": [
+              "FAILED"
+            ]
+          }
+        }
+      Targets:
+        - Arn: !Ref Topic
+          Id: transcribe
+        - Arn: !Sub '${Fn.Arn}'
+          Id: fn
+
+  Sms:
+    Type: AWS::SNS::Subscription
+    Condition: isSmsEnabled
+    Properties:
+      Endpoint: !Ref PhoneNumber
+      Protocol: sms
+      TopicArn: !Ref Topic
+
+  Webhook:
+    Type: AWS::SNS::Subscription
+    Condition: isWebhookEnabled
+    Properties:
+      Endpoint: !Ref WebhookEndpoint
+      Protocol: https
+      TopicArn: !Ref Topic
+
+  Topic:
+    Type: AWS::SNS::Topic
+
+  SnsPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Id: sns-policy
+        Version: 2012-10-17
+        Statement:
+          - Sid: sns-policy
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref Topic
+      Topics: [!Ref Topic]
+
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      DeadLetterQueue:
+        TargetArn: !Ref Topic
+        Type: SNS
+      Environment:
+        Variables:
+          SENTRY_URL: !Ref SentryUrl
+      Handler: index.handler
+      Layers:
+        - !Ref SentryCode
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt Topic.TopicName
+      Runtime: python3.7
+      Timeout: 30
+
+  SentryCode:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.7
+      ContentUri: ./sentry-sdk
+
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Fn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/*'
