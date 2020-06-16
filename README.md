@@ -19,7 +19,7 @@ The target to receive notifications can be [Sentry](https://sentry.io/welcome/),
 - Email
 - any application that supports a webhook
 
-# Example: when a build fails, target: Sentry
+# Example: build failure -> Sentry
 ![](sample-sentry.png)
 
 # Instructions
