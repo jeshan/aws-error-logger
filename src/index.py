@@ -12,6 +12,7 @@ def handler(event, context):
     source = event.get('source', '')
     source = source.replace('aws.', '').capitalize()
 
+    # if you don't intend to use sentry, replace the next lines by your custom logic
     with configure_scope() as scope:
         for key, value in event.items():
             if isinstance(value, (list, dict)):
