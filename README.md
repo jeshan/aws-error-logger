@@ -30,6 +30,8 @@ First, set some parameters in [samconfig.toml](samconfig.toml), like:
 - aws profile
 - parameter overrides like SentryUrl, phone number or webhook endpoint
 
+![](sample-params.png)
+
 ## Deployment
 
 If you use Docker, you may deploy with command:
