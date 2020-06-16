@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "aws-error-logger"
+s3_bucket = ""
+s3_prefix = "aws-error-logger"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "PhoneNumber=\"\" SentryUrl=\"\" WebhookEndpoint=\"\""
+
