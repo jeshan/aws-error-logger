@@ -38,7 +38,9 @@ If you use Docker, you may deploy with command:
 
 `docker-compose up`
 
-Otherwise, run `sam deploy --guided`
+Otherwise, run:
+- `sam build`
+- `sam deploy --guided`
 
 This will deploy the following template in us-east-1. Note that since Cloudwatch Events is a regional service, you need to repeat the deployment in all regions.
 

@@ -236,20 +236,11 @@ Resources:
         Variables:
           SENTRY_URL: !Ref SentryUrl
       Handler: index.handler
-      Layers:
-        - !Ref SentryCode
       Policies:
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt Topic.TopicName
       Runtime: python3.7
       Timeout: 30
-
-  SentryCode:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      CompatibleRuntimes:
-        - python3.7
-      ContentUri: ./sentry-sdk
 
   InvokePermission:
     Type: AWS::Lambda::Permission

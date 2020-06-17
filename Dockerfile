@@ -6,10 +6,10 @@ WORKDIR /app
 
 ENV SAM_CLI_TELEMETRY=0
 
-COPY sentry-sdk sentry-sdk
 COPY template.yaml ./
 COPY src src
 
 COPY samconfig.toml ./
 
+RUN sam build
 ENTRYPOINT sam deploy
