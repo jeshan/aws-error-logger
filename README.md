@@ -48,6 +48,8 @@ This depicts what will get deployed:
 
 ![](diagram.png)
 
+*Image automatically generated with [cfnbuddy](https://www.cfnbuddy.com)*
+
 # Contributing
 Did you find an error that should have been caught but is not? Raise an issue or send a pull request!
 
